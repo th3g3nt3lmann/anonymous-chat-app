@@ -61,14 +61,8 @@ function App() {
       }
     }
 
-    try {
-      ws.current = new WebSocket(WEBSOCKET_URL);
-    } catch (e) {
-      console.error("Error creating WebSocket:", e);
-      addMessage('System', 'Could not connect to the server. Please check your connection.');
-      resetState();
-      return;
-    }
+    console.log(`[DEBUG] Attempting to connect to: ${WEBSOCKET_URL}`);
+    ws.current = new WebSocket(WEBSOCKET_URL);
 
     ws.current.onopen = () => {
       console.log('Connected to WebSocket server');
