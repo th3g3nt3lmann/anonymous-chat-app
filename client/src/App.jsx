@@ -29,7 +29,7 @@ function App() {
   const retryCount = useRef(0);
   const MAX_RETRIES = 5;
 
-  stateRef.current = { displayName, peerName };
+  stateRef.current = { displayName, peerName, status };
 
   useEffect(() => {
     document.body.className = `theme-${theme}`;
@@ -63,7 +63,7 @@ function App() {
 
     ws.current.onmessage = async (event) => {
       const data = JSON.parse(event.data);
-      const { peerName: currentPeerName, displayName: currentDisplayName } = stateRef.current;
+      const { peerName: currentPeerName, displayName: currentDisplayName, status: currentStatus } = stateRef.current;
 
       switch (data.type) {
         case 'waiting':
@@ -106,19 +106,21 @@ function App() {
           addMessage(currentPeerName, decryptedMessage);
           break;
         case 'peer_disconnected':
-          addMessage('System', 'Your peer has disconnected. Finding a new chat...');
+          addMessage('System', 'Your peer has disconnected. Returning to the home screen.');
           resetState();
-          startChat();
           break;
       }
     };
 
     ws.current.onclose = () => {
       console.log('Disconnected from WebSocket server');
+      const { status: currentStatus } = stateRef.current;
 
-      if (status === 'welcome') return;
+      if (currentStatus === 'welcome' || currentStatus === 'chatting') {
+        return;
+      }
 
-      if (status === 'waiting' || status === 'key_exchange') {
+      if (currentStatus === 'waiting' || currentStatus === 'key_exchange') {
         if (retryCount.current < MAX_RETRIES) {
           retryCount.current++;
           const delay = Math.pow(2, retryCount.current) * 1000;
@@ -131,7 +133,7 @@ function App() {
         return;
       }
 
-      addMessage('System', 'Connection lost. Returning to the home screen.');
+      // Fallback for any other state
       resetState();
     };
   };
