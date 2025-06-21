@@ -9,7 +9,7 @@ import {
   decryptMessage
 } from './crypto';
 
-const WEBSOCKET_URL = 'ws://anonymous-chat-app-6hdb.onrender.com';
+const WEBSOCKET_URL = 'wss://wechatanon-production.up.railway.app';
 
 function App() {
   const [status, setStatus] = useState('welcome'); // welcome, waiting, chatting
