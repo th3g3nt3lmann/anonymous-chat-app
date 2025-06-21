@@ -1,0 +1,116 @@
+:root {
+  --font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --line-height: 1.5;
+  --font-weight: 400;
+  --font-synthesis: none;
+  --text-rendering: optimizeLegibility;
+  --webkit-font-smoothing: antialiased;
+  --moz-osx-font-smoothing: grayscale;
+
+  /* Light Theme */
+  --bg-color-light: #ffffff;
+  --text-color-light: #213547;
+  --container-bg-light: #f9f9f9;
+  --border-color-light: #e0e0e0;
+  --input-bg-light: #ffffff;
+  --button-bg-light: #007bff;
+  --button-hover-bg-light: #0056b3;
+  --message-sent-bg-light: #dcf8c6;
+  --message-received-bg-light: #f1f0f0;
+
+  /* Dark Theme */
+  --bg-color-dark: #242424;
+  --text-color-dark: rgba(255, 255, 255, 0.87);
+  --container-bg-dark: #2f2f2f;
+  --border-color-dark: #444444;
+  --input-bg-dark: #3c3c3c;
+  --button-bg-dark: #007bff;
+  --button-hover-bg-dark: #0056b3;
+  --message-sent-bg-dark: #005C4B;
+  --message-received-bg-dark: #3a3a3a;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: var(--font-family);
+  line-height: var(--line-height);
+  font-weight: var(--font-weight);
+  font-synthesis: var(--font-synthesis);
+  text-rendering: var(--text-rendering);
+  -webkit-font-smoothing: var(--webkit-font-smoothing);
+  -moz-osx-font-smoothing: var(--moz-osx-font-smoothing);
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Theme-specific body styles */
+body.theme-light {
+  background-color: var(--bg-color-light);
+  color: var(--text-color-light);
+}
+
+body.theme-dark {
+  background-color: var(--bg-color-dark);
+  color: var(--text-color-dark);
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+
+a:hover {
+  color: #535bf2;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+button:hover {
+  border-color: #646cff;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+
+  a:hover {
+    color: #747bff;
+  }
+
+  button {
+    background-color: #f9f9f9;
+  }
+}
