@@ -9,8 +9,6 @@ import {
   decryptMessage
 } from './crypto';
 
-const WEBSOCKET_URL = 'wss://wechatanon-production.up.railway.app';
-
 function App() {
   const [status, setStatus] = useState('welcome'); // welcome, waiting, chatting
   const [displayName, setDisplayName] = useState('');
@@ -44,35 +42,29 @@ function App() {
   };
 
   const startChat = async (isRetry = false) => {
-    if (!isRetry) {
-      if (!displayName.trim() || !is18 || !agreedToTerms) {
-        alert('Please fill in all fields and agree to the terms.');
-        return;
-      }
-      try {
+    try {
+      const WEBSOCKET_URL = 'wss://wechatanon-production.up.railway.app';
+      console.log(`[DEBUG] Attempting to connect to: ${WEBSOCKET_URL}`);
+
+      if (!isRetry) {
+        if (!displayName.trim() || !is18 || !agreedToTerms) {
+          alert('Please fill in all fields and agree to the terms.');
+          return;
+        }
         setStatus('waiting');
         keyPair.current = await generateKeyPair();
         retryCount.current = 0;
-      } catch (e) {
-        console.error("Error generating keypair:", e);
-        setStatus('welcome');
-        addMessage('System', 'A cryptographic error occurred. Please refresh and try again.');
-        return;
       }
-    }
 
-    console.log(`[DEBUG] Attempting to connect to: ${WEBSOCKET_URL}`);
-    ws.current = new WebSocket(WEBSOCKET_URL);
+      ws.current = new WebSocket(WEBSOCKET_URL);
 
-    ws.current.onopen = () => {
-      console.log('Connected to WebSocket server');
-      ws.current.send(JSON.stringify({ type: 'start_chat', displayName }));
-    };
+      ws.current.onopen = () => {
+        console.log('Connected to WebSocket server');
+        ws.current.send(JSON.stringify({ type: 'start_chat', displayName }));
+      };
 
-    ws.current.onmessage = async (event) => {
-      try {
+      ws.current.onmessage = async (event) => {
         const data = JSON.parse(event.data);
-        console.log('Received message:', data);
         const { peerName: currentPeerName, displayName: currentDisplayName, status: currentStatus } = stateRef.current;
 
         switch (data.type) {
@@ -119,36 +111,37 @@ function App() {
             resetState();
             break;
         }
-      } catch (e) {
-        console.error("Error processing message:", e);
-        console.error("Original message data:", event.data);
-      }
-    };
+      };
 
-    ws.current.onclose = () => {
-      console.log('Disconnected from WebSocket server');
-      const { status: currentStatus } = stateRef.current;
+      ws.current.onclose = () => {
+        console.log('Disconnected from WebSocket server');
+        const { status: currentStatus } = stateRef.current;
 
-      if (currentStatus === 'welcome' || currentStatus === 'chatting') {
-        return;
-      }
-
-      if (currentStatus === 'waiting' || currentStatus === 'key_exchange') {
-        if (retryCount.current < MAX_RETRIES) {
-          retryCount.current++;
-          const delay = Math.pow(2, retryCount.current) * 1000;
-          console.log(`Connection lost while waiting. Retrying in ${delay}ms...`);
-          setTimeout(() => startChat(true), delay);
-        } else {
-          addMessage('System', 'Could not connect to the server. Please try again later.');
-          resetState();
+        if (currentStatus === 'welcome' || currentStatus === 'chatting') {
+          return;
         }
-        return;
-      }
 
-      // Fallback for any other state
+        if (currentStatus === 'waiting' || currentStatus === 'key_exchange') {
+          if (retryCount.current < MAX_RETRIES) {
+            retryCount.current++;
+            const delay = Math.pow(2, retryCount.current) * 1000;
+            console.log(`Connection lost while waiting. Retrying in ${delay}ms...`);
+            setTimeout(() => startChat(true), delay);
+          } else {
+            addMessage('System', 'Could not connect to the server. Please try again later.');
+            resetState();
+          }
+          return;
+        }
+
+        // Fallback for any other state
+        resetState();
+      };
+    } catch (e) {
+      console.error('[FATAL] An error occurred in startChat:', e);
+      addMessage('System', 'A critical error occurred. Please refresh the page and try again.');
       resetState();
-    };
+    }
   };
 
   const addMessage = (sender, content) => {
