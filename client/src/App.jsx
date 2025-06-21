@@ -80,7 +80,6 @@ function App() {
               publicKey: Array.from(new Uint8Array(exportedPublicKey))
             }));
           }
-          startChat();
           break;
         case 'offer':
           setPeerName(data.peerName);
