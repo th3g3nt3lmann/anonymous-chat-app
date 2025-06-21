@@ -49,12 +49,26 @@ function App() {
         alert('Please fill in all fields and agree to the terms.');
         return;
       }
-      setStatus('waiting');
-      keyPair.current = await generateKeyPair();
-      retryCount.current = 0;
+      try {
+        setStatus('waiting');
+        keyPair.current = await generateKeyPair();
+        retryCount.current = 0;
+      } catch (e) {
+        console.error("Error generating keypair:", e);
+        setStatus('welcome');
+        addMessage('System', 'A cryptographic error occurred. Please refresh and try again.');
+        return;
+      }
     }
 
-    ws.current = new WebSocket(WEBSOCKET_URL);
+    try {
+      ws.current = new WebSocket(WEBSOCKET_URL);
+    } catch (e) {
+      console.error("Error creating WebSocket:", e);
+      addMessage('System', 'Could not connect to the server. Please check your connection.');
+      resetState();
+      return;
+    }
 
     ws.current.onopen = () => {
       console.log('Connected to WebSocket server');
@@ -62,52 +76,58 @@ function App() {
     };
 
     ws.current.onmessage = async (event) => {
-      const data = JSON.parse(event.data);
-      const { peerName: currentPeerName, displayName: currentDisplayName, status: currentStatus } = stateRef.current;
+      try {
+        const data = JSON.parse(event.data);
+        console.log('Received message:', data);
+        const { peerName: currentPeerName, displayName: currentDisplayName, status: currentStatus } = stateRef.current;
 
-      switch (data.type) {
-        case 'waiting':
-          console.log('Waiting for a peer...');
-          break;
-        case 'match_found':
-          retryCount.current = 0; // Reset counter on successful connection
-          setPeerName(data.peerName);
-          setStatus('key_exchange');
-          if (data.initiator) {
-            const exportedPublicKey = await exportKey(keyPair.current.publicKey);
+        switch (data.type) {
+          case 'waiting':
+            console.log('Waiting for a peer...');
+            break;
+          case 'match_found':
+            retryCount.current = 0; // Reset counter on successful connection
+            setPeerName(data.peerName);
+            setStatus('key_exchange');
+            if (data.initiator) {
+              const exportedPublicKey = await exportKey(keyPair.current.publicKey);
+              ws.current.send(JSON.stringify({
+                type: 'offer',
+                publicKey: Array.from(new Uint8Array(exportedPublicKey))
+              }));
+            }
+            break;
+          case 'offer':
+            setPeerName(data.peerName);
+            const peerPublicKeyForOffer = await importKey(new Uint8Array(data.publicKey));
+            sharedKey.current = await deriveSharedSecret(keyPair.current.privateKey, peerPublicKeyForOffer);
+            setStatus('chatting');
+            addMessage('System', `You are now chatting with ${data.peerName}.`);
+            const exportedPublicKeyForAnswer = await exportKey(keyPair.current.publicKey);
             ws.current.send(JSON.stringify({
-              type: 'offer',
-              publicKey: Array.from(new Uint8Array(exportedPublicKey))
+              type: 'answer',
+              publicKey: Array.from(new Uint8Array(exportedPublicKeyForAnswer))
             }));
-          }
-          break;
-        case 'offer':
-          setPeerName(data.peerName);
-          const peerPublicKeyForOffer = await importKey(new Uint8Array(data.publicKey));
-          sharedKey.current = await deriveSharedSecret(keyPair.current.privateKey, peerPublicKeyForOffer);
-          setStatus('chatting');
-          addMessage('System', `You are now chatting with ${data.peerName}.`);
-          const exportedPublicKeyForAnswer = await exportKey(keyPair.current.publicKey);
-          ws.current.send(JSON.stringify({
-            type: 'answer',
-            publicKey: Array.from(new Uint8Array(exportedPublicKeyForAnswer))
-          }));
-          break;
-        case 'answer':
-          const peerPublicKeyForAnswer = await importKey(new Uint8Array(data.publicKey));
-          sharedKey.current = await deriveSharedSecret(keyPair.current.privateKey, peerPublicKeyForAnswer);
-          setStatus('chatting');
-          addMessage('System', `You are now chatting with ${currentPeerName}.`);
-          break;
-        case 'encrypted_message':
-          if (!sharedKey.current) return;
-          const decryptedMessage = await decryptMessage(sharedKey.current, data.message);
-          addMessage(currentPeerName, decryptedMessage);
-          break;
-        case 'peer_disconnected':
-          addMessage('System', 'Your peer has disconnected. Returning to the home screen.');
-          resetState();
-          break;
+            break;
+          case 'answer':
+            const peerPublicKeyForAnswer = await importKey(new Uint8Array(data.publicKey));
+            sharedKey.current = await deriveSharedSecret(keyPair.current.privateKey, peerPublicKeyForAnswer);
+            setStatus('chatting');
+            addMessage('System', `You are now chatting with ${currentPeerName}.`);
+            break;
+          case 'encrypted_message':
+            if (!sharedKey.current) return;
+            const decryptedMessage = await decryptMessage(sharedKey.current, data.message);
+            addMessage(currentPeerName, decryptedMessage);
+            break;
+          case 'peer_disconnected':
+            addMessage('System', 'Your peer has disconnected. Returning to the home screen.');
+            resetState();
+            break;
+        }
+      } catch (e) {
+        console.error("Error processing message:", e);
+        console.error("Original message data:", event.data);
       }
     };
 
