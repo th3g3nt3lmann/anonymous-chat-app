@@ -26,6 +26,8 @@ function App() {
   const sharedKey = useRef(null);
   const messagesEndRef = useRef(null);
   const stateRef = useRef({});
+  const retryCount = useRef(0);
+  const MAX_RETRIES = 5;
 
   stateRef.current = { displayName, peerName };
 
@@ -41,14 +43,16 @@ function App() {
     setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
   };
 
-  const startChat = async () => {
-    if (!displayName.trim() || !is18 || !agreedToTerms) {
-      alert('Please fill in all fields and agree to the terms.');
-      return;
+  const startChat = async (isRetry = false) => {
+    if (!isRetry) {
+      if (!displayName.trim() || !is18 || !agreedToTerms) {
+        alert('Please fill in all fields and agree to the terms.');
+        return;
+      }
+      setStatus('waiting');
+      keyPair.current = await generateKeyPair();
+      retryCount.current = 0;
     }
-
-    setStatus('waiting');
-    keyPair.current = await generateKeyPair();
 
     ws.current = new WebSocket(WEBSOCKET_URL);
 
@@ -66,6 +70,7 @@ function App() {
           console.log('Waiting for a peer...');
           break;
         case 'match_found':
+          retryCount.current = 0; // Reset counter on successful connection
           setPeerName(data.peerName);
           setStatus('key_exchange');
           if (data.initiator) {
@@ -75,6 +80,7 @@ function App() {
               publicKey: Array.from(new Uint8Array(exportedPublicKey))
             }));
           }
+          startChat();
           break;
         case 'offer':
           setPeerName(data.peerName);
@@ -109,10 +115,24 @@ function App() {
 
     ws.current.onclose = () => {
       console.log('Disconnected from WebSocket server');
-      if (status !== 'welcome') {
-        addMessage('System', 'Connection lost. Please try starting a new chat.');
-        resetState();
+
+      if (status === 'welcome') return;
+
+      if (status === 'waiting' || status === 'key_exchange') {
+        if (retryCount.current < MAX_RETRIES) {
+          retryCount.current++;
+          const delay = Math.pow(2, retryCount.current) * 1000;
+          console.log(`Connection lost while waiting. Retrying in ${delay}ms...`);
+          setTimeout(() => startChat(true), delay);
+        } else {
+          addMessage('System', 'Could not connect to the server. Please try again later.');
+          resetState();
+        }
+        return;
       }
+
+      addMessage('System', 'Connection lost. Returning to the home screen.');
+      resetState();
     };
   };
 
