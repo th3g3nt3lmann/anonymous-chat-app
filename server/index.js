@@ -8,6 +8,10 @@ const app = express();
 app.use(cors());
 app.use(helmet());
 
+app.get('/', (req, res) => {
+    res.status(200).send('Server is running and healthy.');
+});
+
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
@@ -99,6 +103,6 @@ wss.on('connection', (ws) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is listening on port ${PORT}`);
 }); 
